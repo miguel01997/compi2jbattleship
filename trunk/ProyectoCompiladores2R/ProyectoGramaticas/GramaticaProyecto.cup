@@ -1,0 +1,479 @@
+import java_cup.runtime.Symbol;
+import java.util.*;
+import java.io.FileReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.util.Vector;
+import java.util.LinkedList;
+import AST.*;
+import java.io.FileNotFoundException;
+
+init with {:  :};
+action code
+{:
+
+
+:};
+
+parser code{:
+public TablaDeSimbolos TSC=new TablaDeSimbolos();
+public Instruccion  ins=new Instruccion();
+public String CanonicalPath;
+public Exp part;
+//public boolean Errores=false;
+public Errores err=new Errores();
+
+public void report_error(String msj,Object Info){}
+public void report_fatal_error(String msj,Object Info){report_error(msj,Info);}
+
+public void syntax_error(Symbol s)
+{
+//this.Errores=true;
+Errores.InsertarError(s.left,"Error: No se esperaba: "+s.value.toString());
+}
+
+:};
+terminal IMPORT;
+terminal CLASS;
+terminal String EXTENDS;
+terminal String PUBLICO;
+terminal String PROTEGIDO;
+terminal String PRIVADO;
+terminal THIS;
+
+terminal IF,ELSE,FOR,WHILE,SWITCH,CASE,BREAK,DEFAULT,DO;
+terminal LLA,LLC,PA,PC;
+
+terminal CA,CC;
+terminal NEW;
+
+terminal PCOMA,DPUNTOS,COMA,PUNTO;
+terminal AP;
+
+terminal String MAS,MENOS,POR,DIV,MOD;
+terminal String MAYORQ,MENORQ,MAYORIGUAL,MENORIGUAL;
+terminal String IGUAL,NOIGUAL;
+terminal String AND,OR,NOT;
+
+terminal String ASIGNA;
+terminal String RETURN;
+
+terminal String TRUE;
+terminal String FALSE;
+terminal String ID;
+terminal String ENTERO;
+terminal String CADENA;
+terminal String CARACTER;
+
+terminal String INT,CHAR,BOOL,VAR;
+terminal String STRING,FLOAT;
+terminal String VOID;
+
+
+non terminal S;
+
+non terminal Clase DeclaracionClase1;
+non terminal ListaMetodosAtributos MiembrosDeClase1;
+
+non terminal MiembroDeClase1;
+
+non terminal DeclaracionMetodos DMetodo;
+non terminal ListaDeclaracion ParametrosMetodo;
+
+non terminal Declaracion DAtributo;
+
+non terminal String Visibilidad;
+
+non terminal DeclaracionMetodos Inicio;
+
+non terminal ListaInstrucciones ListaInstrucciones1;
+non terminal Instruccion Instruccion1;
+
+non terminal ListaInstrucciones ListaInstrucciones1Case;
+non terminal Instruccion Instruccion1Case;
+
+non terminal IF if1;
+non terminal ElseIF elseif1;
+non terminal ListaElseIF listaElseif;	
+
+non terminal Loop for1;
+non terminal Loop while1;
+
+non terminal Loop doWhile;  //no implementado
+
+non terminal IF switch1;
+non terminal ElseIF case1;
+non terminal ListaElseIF  listaCase;
+non terminal ListaInstrucciones ListaInstruccionesCase;
+non terminal Else default1;
+
+non terminal Asignacion assigancion1;
+non terminal Declaracion declaracion1;
+non terminal Declaracion listaDeclaracion;
+non terminal ListaDim Dimenciones;
+non terminal ExpID llamadaProcedimiento1;
+
+non terminal ListaExp parametros;
+
+non terminal Exp EXP;
+non terminal Exp EXPAND;
+non terminal Exp EXPIG;
+non terminal Exp EXPRE;
+non terminal Exp EXPA;
+non terminal Exp EXPM;
+non terminal Exp EXPU;
+non terminal ExpID EXPID;
+non terminal ExpLiteral EXPliteral;
+non terminal ListaExp Indices;
+non terminal ListaExp Argumentos;
+
+non terminal String Tipo1;
+
+non terminal Import;
+non terminal Limport;
+non terminal LDeclaracionClases1;
+
+start with S;
+
+S::=Limport LDeclaracionClases1 {::}
+    | LDeclaracionClases1 {::};
+								      
+LDeclaracionClases1::=LDeclaracionClases1 DeclaracionClase1:a1 	{:parser.ins.tabla=parser.TSC; parser.ins.SiguienteInstruccion.add(a1);:}
+	    |DeclaracionClase1:a1 				{:parser.ins.tabla=parser.TSC; parser.ins.SiguienteInstruccion.add(a1);:};
+
+
+Limport::=Limport Import  	{::}
+	  |Import 		{::};
+
+Import::=IMPORT ID:a0 PUNTO ID:a1 PCOMA
+			      {:
+				 File nArchivo = new File(parser.CanonicalPath+"/"+a0+"."+a1);
+				 if(nArchivo!=null)
+				 {
+				    try {
+                
+				      ScannerProyecto scp=new ScannerProyecto(new FileReader(nArchivo));
+				      ParserP pap=new ParserP();
+				      // cuando hay Imports se pasa la Tabla de Simbolos y las Instrucciones hacia el sigiente objeto ParserP 
+				
+				      pap.ins=parser.ins;
+				      pap.TSC=parser.TSC;
+				      pap.CanonicalPath=parser.CanonicalPath;
+				      
+				      pap.setScanner(scp);
+				      try {
+					    pap.parse();
+					    
+					    parser.ins=pap.ins;
+					    parser.TSC=pap.TSC;
+					    } catch (Exception ex) {
+					    
+						      }
+						 } catch (FileNotFoundException ex) {
+						}
+
+				   }
+			      :};
+
+DeclaracionClase1::=CLASS ID:a1       LLA MiembrosDeClase1:a2 LLC   {:Clase res=new Clase(a1,""); res.Atributos=a2.LA; res.Metodos=a2.LM; RESULT=res;:}
+		 |CLASS ID:a1 EXTENDS ID:a2 LLA MiembrosDeClase1:a3 LLC   {:Clase res=new Clase(a1,a2); res.Atributos=a3.LA; res.Metodos=a3.LM; RESULT=res;:}; //para la herencia
+
+MiembrosDeClase1::=MiembrosDeClase1:a1 DMetodo:a2 	{:a1.LM.add(a2); RESULT=a1;:}
+      |MiembrosDeClase1:a1 DAtributo:a2				{:a1.LA.add(a2); RESULT=a1;:}
+      |DMetodo:a1 						{:ListaMetodosAtributos res=new ListaMetodosAtributos(); res.LM.add(a1);RESULT=res;:}
+      |DAtributo:a1 						{:ListaMetodosAtributos res=new ListaMetodosAtributos(); res.LA.add(a1);RESULT=res;:};
+
+MiembroDeClase1::=DAtributo 				{::}
+      |DMetodo 						{::};
+
+
+DAtributo ::=Visibilidad:a1 Tipo1:a2 ID:a3 PCOMA 		{:Declaracion res= new Declaracion(a2left,a1,a2,a3,null); RESULT=res;:}
+	    |Visibilidad:a1 Tipo1:a2 ID:a3 Dimenciones:a4 PCOMA {:Declaracion res= new Declaracion(a2left,a1,a2,a3,a4.List); RESULT=res;:}
+	    |Tipo1:a2 ID:a3  Dimenciones:a4 PCOMA 		{:Declaracion res= new Declaracion(a2left,"private",a3,a2,a4.List);RESULT=res;:}
+	    |Tipo1:a2 ID:a3 PCOMA				{:Declaracion res= new Declaracion(a2left,"private",a3,a2,null);RESULT=res;:};
+
+DMetodo::=Visibilidad:a0 Tipo1:a ID:a2 PA PC 		  	       LLA ListaInstrucciones1:a3 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos(a0,a2,a,null,a3.List);          RESULT=res;:}
+	|Visibilidad:a0  VOID ID:a2 PA PC			       LLA ListaInstrucciones1:a3 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos(a0,a2,"void",null,a3.List);          RESULT=res;:}
+	| 		 VOID ID:a2 PA PC 		  	       LLA ListaInstrucciones1:a3 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos("private",a2,"void",null,a3.List);   RESULT=res;:}
+	| 		 Tipo1:a ID:a2 PA PC 		  	       LLA ListaInstrucciones1:a3 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos("private",a2,a,null,a3.List);   RESULT=res;:}
+	|Visibilidad:a0  Tipo1:a ID:a2 PA ParametrosMetodo:a3 PC       LLA ListaInstrucciones1:a4 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos(a0,a2,a,a3.L,a4.List);       RESULT=res;:}
+	|	         Tipo1:a ID:a2 PA ParametrosMetodo:a3 PC       LLA ListaInstrucciones1:a4 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos("private",a2,a,a3.L,a4.List); RESULT=res;:}
+	|Visibilidad:a0  VOID ID:a2 PA ParametrosMetodo:a3 PC       LLA ListaInstrucciones1:a4 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos(a0,a2,"void",a3.L,a4.List);       RESULT=res;:}
+	|	         VOID ID:a2 PA ParametrosMetodo:a3 PC       LLA ListaInstrucciones1:a4 LLC	{:DeclaracionMetodos res=new DeclaracionMetodos("private",a2,"void",a3.L,a4.List); RESULT=res;:};
+
+ParametrosMetodo::=ParametrosMetodo:a COMA Tipo1:a2 ID:a3 	{:Declaracion r=new Declaracion(a3,a2,null,false); a.L.add(r);RESULT=a;:}
+	|ParametrosMetodo:a COMA Tipo1:a2  AP  ID:a3		{:Declaracion r=new Declaracion(a3,a2,null,true); a.L.add(r);RESULT=a;:}
+	|Tipo1:a ID:a1						{:Declaracion r=new Declaracion(a1,a,null,false); ListaDeclaracion res=new ListaDeclaracion(); res.L.add(r); RESULT=res;:}
+	|Tipo1:a AP ID:a1					{:Declaracion r=new Declaracion(a1,a,null,true); ListaDeclaracion res=new ListaDeclaracion(); res.L.add(r); RESULT=res;:};
+
+Visibilidad::=PUBLICO:a 	{:RESULT=a;:}
+      |PROTEGIDO:a 		{:RESULT=a;:}
+      |PRIVADO:a		{:RESULT=a;:};
+
+//S::=Inicio:a {:ins.tabla=TSC; ins.SiguienteInstruccion.add(a); :};
+
+Inicio::= ListaInstrucciones1:a  {:RESULT=new DeclaracionMetodos("_main","void",null,a.List);:};
+
+
+///Agregar para declaracion de clasess funciones y procedimientos 
+
+
+ListaInstrucciones1::=ListaInstrucciones1:a  Instruccion1:b     {:a.List.add(b);RESULT=a;:}
+	  | Instruccion1:a                                      {:ListaInstrucciones res=new ListaInstrucciones(); res.List.add(a);RESULT=res;:};
+
+Instruccion1::=if1:a	 				       {:RESULT=a;:}
+	    |for1:a	 				       {:RESULT=a;:}
+	    |while1:a                                          {:RESULT=a;:}
+	    |doWhile:a					       {:RESULT=a;:}
+	    |switch1:a                                         {:RESULT=a;:}
+	    |assigancion1:a  PCOMA                             {:RESULT=a;:}
+	    |declaracion1:a  PCOMA			       {:RESULT=a;:}
+	    |llamadaProcedimiento1:a  PCOMA                    {:RESULT=a;:}
+	    |RETURN:a0 EXP:a1 PCOMA 			       {:Return ret=new Return(a0left,a1);RESULT=ret;:}
+	    |error LLC				               {:RESULT=null;:}
+	    |error PCOMA				       {:RESULT=null;:};
+
+
+if1::= IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC                     		{:RESULT=new IF(aleft,a,b.List,null,null);:}
+     | IF  PA EXP:a PC Instruccion1:b                                    		{:LinkedList <Instruccion> Ins=new LinkedList(); Ins.add(b); RESULT=new IF(aleft,a,Ins,null,null);:}
+     | IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC ELSE LLA ListaInstrucciones1:c LLC {:Else res=new Else(c.List); RESULT=new IF(aleft,a,b.List,null,res);:}
+     | IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC listaElseif:c 			{:RESULT=new IF(aleft,a,b.List,c.List,null);:}
+     | IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC listaElseif:c ELSE LLA ListaInstrucciones1:d LLC {:Else res=new Else(d.List); RESULT=new IF(aleft,a,b.List,c.List,res);:};
+
+
+listaElseif::=listaElseif:a1  ELSE IF PA EXP:a PC LLA ListaInstrucciones1:b LLC 	{:ElseIF temp=new ElseIF(a,b.List); a1.List.add(temp); RESULT=a1;:}
+	  | ELSE IF PA EXP:a PC LLA ListaInstrucciones1:b LLC 				{:ListaElseIF t=new ListaElseIF(); ElseIF t1=new ElseIF(a,b.List); t.List.add(t1);RESULT=t; :};
+
+//    |ELSE IF PA EXP:a PC Instruccion1:b 		 			{:LinkedList<Instruccion> Ins=new LinkedList(); Ins.add(b);RESULT=new ElseIF(a,Ins);:};
+
+      
+/*
+  if1::= IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC                     {:RESULT=new IF(aleft,a,b.List,null,null);:}
+     | IF  PA EXP:a PC Instruccion1:b                                      {:LinkedList <Instruccion> Ins=new LinkedList(); Ins.add(b); RESULT=new IF(aleft,a,Ins,null,null);:}
+     | IF  PA EXP:a PC LLA ListaInstrucciones1:b LLC ELSE LLA ListaInstrucciones1:c LLC {:Else res=new Else(c.List); RESULT=new IF(aleft,a,b.List,null,res);:};
+*/
+
+for1::=FOR PA assigancion1:a PCOMA EXP:b PCOMA assigancion1:c PC LLA ListaInstrucciones1Case:d LLC    {:RESULT=new Loop(aleft,a,b,c,d.List);:}
+     |FOR PA assigancion1:a PCOMA EXP:b PCOMA assigancion1:c PC  Instruccion1Case:d                   {:LinkedList<Instruccion> Ins=new LinkedList(); Ins.add(d); RESULT=new Loop(aleft,a,b,c,Ins);:}
+     |FOR PA assigancion1:a PCOMA EXP:b PCOMA  PC LLA ListaInstrucciones1Case:d LLC    		  {:RESULT=new Loop(aleft,a,b,null,d.List);:}
+     |FOR PA assigancion1:a PCOMA EXP:b PCOMA PC Instruccion1Case:d    				  {:LinkedList<Instruccion> Ins=new LinkedList(); Ins.add(d); RESULT=new Loop(aleft,a,b,null,Ins);:};
+    
+while1::=WHILE PA EXP:a PC LLA ListaInstrucciones1Case:b LLC	{:RESULT=new Loop(aleft,a,b.List);:}
+      |WHILE PA EXP:a PC Instruccion1Case:b			{:LinkedList <Instruccion> Ins=new LinkedList(); Ins.add(b); RESULT=new Loop(aleft,a,Ins);:};
+
+
+doWhile::=DO LLA ListaInstrucciones1Case:a LLC WHILE PA EXP:b PC 	{:RESULT=new Loop(aleft,b,a.List,true);:};
+
+switch1::=SWITCH PA EXP:a {: parser.part=a;:} PC LLA   listaCase:b  LLC{: ExpLiteral con=new ExpLiteral("0","int"); RESULT=new IF(aleft,con,null,b.List,b.Else);:};
+
+ListaInstruccionesCase::=ListaInstrucciones1Case:a     {:RESULT=a;:};
+       //ListaInstrucciones1:a BREAK PCOMA             {:Break c=new Break(); a.List.add(c); RESULT=a;:};
+      //|ListaInstrucciones1:a			       {:RESULT=a;:};
+
+listaCase::= case1:a listaCase:b		        {:b.List.addFirst(a); RESULT=b;:}
+      |case1:a					        {:ListaElseIF res=new ListaElseIF(); res.List.add(a); RESULT=res;:}
+      |default1:a					{: ListaElseIF res=new ListaElseIF(); res.Else=a; RESULT=res;:};
+
+case1::=CASE EXP:a DPUNTOS ListaInstruccionesCase:b   {:ExpBinaria cond=new ExpBinaria(parser.part,a,"=="); RESULT=new ElseIF(cond,b.List);:};
+
+default1::=DEFAULT DPUNTOS ListaInstruccionesCase:a   {:RESULT=new Else(a.List);:};
+
+assigancion1::=EXPID:a ASIGNA EXP:b		{:
+						  //ExpID res=new ExpID(null,a,null,false); 
+						  RESULT=new Asignacion(aleft,a,b,false);
+						:}
+	                    // para expreciones como a++ que es equivalente a=a+1 ; a-- equivalente a=a-1 etc. 
+			   // se genera un nodo para la operación y luego se crear un nodo par la Asignación 
+	       |EXPID:a MAS MAS			{:
+						  //ExpID res=new ExpID(null,a,null,false); 
+						  ExpLiteral uno=new ExpLiteral("1","int");
+                                                  ExpBinaria suma1=new ExpBinaria(a,uno,"+");
+						  RESULT=new Asignacion(aleft,a,suma1,false);
+						:}
+	       |EXPID:a MENOS MENOS                 {:
+						  //ExpID res=new ExpID(null,a,null,false); 
+						  ExpLiteral uno=new ExpLiteral("1","int");
+                                                  ExpBinaria resta1=new ExpBinaria(a,uno,"-");RESULT=new Asignacion(aleft,a,resta1,false);
+						:}
+	      //para las expreciones como a+=b es equivalente a a=a+b; donde b pude ser cualquier exprecion se genera un nodo para la suma y luego 
+	      // para la asigancion 
+
+	      |EXPID:a MAS ASIGNA EXP:b 	{:ExpBinaria n=new ExpBinaria(a,b,"+"); RESULT=new Asignacion(aleft,a,n,false);:}
+	      |EXPID:a MENOS ASIGNA EXP:b 	{:ExpBinaria n=new ExpBinaria(a,b,"-"); RESULT=new Asignacion(aleft,a,n,false);:}
+	      |EXPID:a POR ASIGNA EXP:b 	{:ExpBinaria n=new ExpBinaria(a,b,"*"); RESULT=new Asignacion(aleft,a,n,false);:}
+	      |EXPID:a DIV ASIGNA EXP:b 	{:ExpBinaria n=new ExpBinaria(a,b,"/"); RESULT=new Asignacion(aleft,a,n,false);:}
+	      |EXPID:a MOD ASIGNA EXP:b		{:ExpBinaria n=new ExpBinaria(a,b,"%"); RESULT=new Asignacion(aleft,a,n,false);:};
+	
+
+
+		
+
+llamadaProcedimiento1::=EXPID:a 		{:RESULT=a;:};
+//llamadaProcedimiento1::=ID:a PA parametros:b PC	{:RESULT=new ExpID(aleft,null,a,b.List,true);:}	
+//	      |ID:a PA  PC		        {:RESULT=new ExpID(aleft,null,a,null,true);:};
+
+parametros::=parametros:a COMA EXP:b 		{:a.List.add(b); RESULT=a;:}
+      |EXP:a					{:ListaExp res=new ListaExp(); res.List.add(a);RESULT=res;:};
+
+EXP::=EXP:a OR EXPAND:b 			{:RESULT=new ExpBinaria(a,b,"||");:}
+      |EXPAND:a					{:RESULT=a;:};
+
+EXPAND::=EXPAND:a AND EXPIG:b 			{:RESULT=new ExpBinaria(a,b,"&&");:}
+      |EXPIG:a					{:RESULT=a;:};
+
+EXPIG::=EXPIG:a IGUAL EXPRE:b 			{:RESULT=new ExpBinaria(a,b,"==");:}
+      |EXPIG:a NOIGUAL EXPRE:b 			{:RESULT=new ExpBinaria(a,b,"!=");:}
+      |EXPRE:a					{:RESULT=a;:};
+
+EXPRE::=EXPRE:a MENORQ EXPA:b 			{:RESULT=new ExpBinaria(a,b,"<");:}
+      |EXPRE:a MAYORQ EXPA:b 			{:RESULT=new ExpBinaria(a,b,">");:}
+      |EXPRE:a MENORIGUAL EXPA:b 		{:RESULT=new ExpBinaria(a,b,"<=");:}
+      |EXPRE:a MAYORIGUAL EXPA:b 		{:RESULT=new ExpBinaria(a,b,">=");:}
+      |EXPA:a					{:RESULT=a;:};
+
+EXPA::=EXPA:a MAS EXPM:b			{:RESULT=new ExpBinaria(a,b,"+");:}
+      |EXPA:a MENOS EXPM:b			{:RESULT=new ExpBinaria(a,b,"-");:}
+      |EXPM:a					{:RESULT=a;:};
+
+EXPM::=EXPM:a POR EXPU:b			{:RESULT=new ExpBinaria(a,b,"*");:}
+      |EXPM:a MOD EXPU:b			{:RESULT=new ExpBinaria(a,b,"%");:}      
+      |EXPM:a DIV EXPU:b			{:RESULT=new ExpBinaria(a,b,"/");:}      
+      |EXPU:a					{:RESULT=a;:};
+
+//Falta el operador Unitario -
+EXPU::=NOT PA EXP:a PC				{:RESULT=new ExpU(a,"!");:}
+      |PA EXP:a PC				{:RESULT=a;:}
+      |EXPID:a					{:
+						  //RESULT=new ExpID(null,a,null,false);
+						  RESULT=a;
+						:}
+      |EXPliteral:a				{:RESULT=a;:};
+
+ 
+EXPID::=EXPID:a0 PUNTO ID:a		      {:RESULT=new ExpID(a0,a,null,false);:}
+      |EXPID:a0 PUNTO  ID:a Indices:b    {:RESULT=new ExpID(a0,a,b.List,false);:}
+      |EXPID:a0 PUNTO  ID:b PA PC	      {:  
+						  ExpID re=new ExpID(bleft,a0,b,null,true);
+						  RESULT=re;
+					      :}
+      |EXPID:a0 PUNTO ID:b PA parametros:c PC {:  
+						  ExpID re=new ExpID(bleft,a0,b,c.List,true);
+						  RESULT=re;
+					      :}
+      |ID:a Indices:b	 		      {:RESULT=new ExpID(null,a,b.List,false);:}
+      |ID:b PA PC			      {:
+						  ExpID re=new ExpID(bleft,null,b,null,true);
+						  RESULT=re;
+						  //RESULT=new Asignacion(aleft,a,re,false);
+						:}
+
+      |NEW ID:b PA PC			      {:
+						  ExpID re=new ExpID(bleft,null,b,null,true);
+						  re.NEW=true;
+						  RESULT=re;						  
+						  //RESULT=new Asignacion(aleft,a,re,false);
+						:}      |ID:b PA parametros:c PC			{:
+						  ExpID re=new ExpID(bleft,null,b,c.List,true);
+						  RESULT=re;
+						  //RESULT=new Asignacion(aleft,a,re,false);
+						:}
+      |NEW ID:b PA parametros:c PC			{:
+						  ExpID re=new ExpID(bleft,null,b,c.List,true);
+						  re.NEW=true;
+						  RESULT=re;
+						  //RESULT=new Asignacion(aleft,a,re,false);
+						:}
+      |ID:a					{:RESULT=new ExpID(null,a,null,false);:};
+
+
+Indices::=Indices:a CA EXP:b CC 		{:a.List.add(b);RESULT=a;:}
+      |CA EXP:a CC 				{:ListaExp res=new ListaExp(); res.List.add(a); RESULT=res;:};
+
+//Argumentos::=Argumentos:a COMA EXP:b 		{:a.List.add(b); RESULT=a;:}
+//      |EXP:a					{:ListaExp res=new Lista(); res.List.add(a); RESULT=a;:};
+
+EXPliteral::=CADENA:a				{:RESULT=new ExpLiteral(a,"string");:}
+      |ENTERO:a					{:RESULT=new ExpLiteral(a,"int");:}
+      |ENTERO:a	PUNTO ENTERO:a1			{:RESULT=new ExpLiteral(a+"."+a1,"float");:}
+      |TRUE					{:RESULT=new ExpLiteral("1","boolean");:}
+      |FALSE					{:RESULT=new ExpLiteral("0","boolean");:}
+      |CARACTER:a 				{:RESULT=new ExpLiteral(a,"char");:};
+
+
+declaracion1::=  listaDeclaracion:b 		{:RESULT=b;:};
+
+listaDeclaracion::=listaDeclaracion:a COMA ID:b ASIGNA EXP:c {: 
+							      Declaracion res=new Declaracion(b,null); 
+
+							      ExpID Ig=new ExpID(null,b,null,false);
+							      Asignacion As=new Asignacion(Ig,c,false);  
+							      res.InicializarDeclaracion=As;
+  
+							      res.Tipo=a.Tipo; 
+							      res.SubDeclaracion=a;  
+							      RESULT=res;
+							    :}
+	|listaDeclaracion:a COMA ID:b 		 	    {: Declaracion res=new Declaracion(b,null); res.Tipo=a.Tipo; res.SubDeclaracion=a;  RESULT=res;:}
+	|listaDeclaracion:a COMA ID:b Dimenciones:c	    {: 
+								
+								Declaracion res=new Declaracion(b,c.List); 
+								res.Tipo=a.Tipo; 
+								res.SubDeclaracion=a;  
+								RESULT=res;							
+								
+		 					     :}
+
+
+// falta modificar EXP por Entero OJO
+	|Tipo1:a ID:b Dimenciones:c 	            {:
+								  Declaracion res; 
+								  //if(a.equals("string")){a="char";} 
+								  //if(a.equals("bool")){a="int";} 								  
+								  res=new Declaracion(b,c.List);
+								  res.Tipo=a; RESULT=res;								  
+							    :}
+
+	| Tipo1:a ID:b  			            {:Declaracion res=new Declaracion(b,null); if(a.equals("string")){a="char";} if(a.equals("bool")){a="int";}   res.Tipo=a; RESULT=res;:}
+	| Tipo1:a ID:b ASIGNA EXP:c 			    {: 
+							      Declaracion res=new Declaracion(b,null); 
+							      if(a.equals("bool")){a="int"; res.tipos.Add("bool");} 
+							      if(a.equals("string")){a="char";}
+							      
+
+							      ExpID Ig=new ExpID(null,b,null,false);
+							      Asignacion As=new Asignacion(Ig,c,false);	  
+
+							      res.InicializarDeclaracion=As;
+							      res.NoLinea=aleft; 
+							      res.Tipo=a; RESULT=res;
+							     :};
+
+//Tipos de Datos Primitivos 
+Tipo1::=INT:a 					{: RESULT=a;:}
+      |CHAR:a					{: RESULT=a;:}
+      |ID:a					{: RESULT=a;:}
+      |STRING:a					{: RESULT=a;:}
+      |FLOAT:a					{: RESULT=a;:}
+      |BOOL:a					{: RESULT=a;:};
+
+Dimenciones::=Dimenciones:a CA ENTERO:b CC 	{:int b1=Integer.parseInt(b); a.List.add(b1);RESULT=a;:}
+	      |CA ENTERO:a CC 			{:int a1=Integer.parseInt(a); ListaDim res=new ListaDim(); res.List.add(a1); RESULT=res;:};
+
+ListaInstrucciones1Case::=ListaInstrucciones1Case:a Instruccion1Case:b  {:a.List.add(b);RESULT=a;:}
+      |Instruccion1Case:a						{:ListaInstrucciones res=new ListaInstrucciones(); res.List.add(a);RESULT=res;:};
+
+//Instrucciones para Case y ciclos para procedimientos con tipo VOID se hace de la misma forma solo que en vez de RETURN CON EXP SE COLOCA PUNTO Y COMA
+Instruccion1Case::=if1:a	 			       {:RESULT=a;:}
+	    |for1:a	 				       {:RESULT=a;:}
+	    |while1:a                                          {:RESULT=a;:}
+	    |doWhile:a					       {:RESULT=a;:}
+	    |switch1:a                                         {:RESULT=a;:}
+	    |assigancion1:a  PCOMA                             {:RESULT=a;:}
+	    |declaracion1:a  PCOMA			       {:RESULT=a;:}
+	    |llamadaProcedimiento1:a  PCOMA                    {:RESULT=a;:}
+	    |BREAK PCOMA				       {:Break c=new Break(); RESULT=c;:}
+	    |RETURN:a0 EXP:a1 PCOMA 			       {:Return ret=new Return(a0left,a1);RESULT=ret;:}
+	    |error LLC				      	       {:RESULT=null;:}
+	    |error PCOMA				       {:RESULT=null;:};

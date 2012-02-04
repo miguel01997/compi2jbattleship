@@ -1,0 +1,168 @@
+import java_cup.runtime.Symbol;
+import java.util.*;
+import java.io.FileReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.util.Vector;
+import java.util.LinkedList;
+import InterpreteTAC.*;
+
+init with {:  :};
+action code
+{:
+
+
+:};
+
+parser code{:
+//public TablaDeSimbolos TSC=new TablaDeSimbolos();
+//public Instruccion  ins=new Instruccion();
+//public Exp part;
+//public boolean Errores=false;
+//public Errores err=new Errores();
+public GrafoCuadruplos g=new GrafoCuadruplos();
+public void report_error(String msj,Object Info){}
+public void report_fatal_error(String msj,Object Info){report_error(msj,Info);}
+
+public void syntax_error(Symbol s)
+{
+//this.Errores=true;
+//Errores.InsertarError(s.left,"Error: No se esperaba: "+s.value.toString());
+}
+
+:};
+
+terminal IF,GOTO,CALL;
+terminal PUSH;
+
+terminal STACK;
+terminal HEAP;
+
+terminal String ID;
+terminal String ENTERO;
+
+terminal String CARACTER;
+terminal String MAS;
+terminal String MENOS;
+terminal String POR;
+terminal String DIV;
+terminal String MOD;
+terminal String VOID;
+
+terminal String LABEL;
+terminal String PUNTO;
+terminal String LLA , LLC;
+
+terminal String MAYORQ;
+terminal String MENORQ;
+terminal String MENORIGUAL;
+terminal String MAYORIGUAL;
+terminal String IGUAL;
+terminal String NOIGUAL;
+
+
+terminal String RETURN;
+
+terminal String ASIGNA;
+
+terminal CA,CC;
+
+terminal DPUNTOS;
+terminal PCOMA;
+
+terminal PA,PC;
+
+terminal COMA;
+
+terminal INT;
+terminal FLOAT;
+
+non terminal s;
+non terminal NodoCuadruplos E;
+non terminal ListaCuadruplos L;
+non terminal ListaNodoCuadruplos LB;
+non terminal LM;
+non terminal M;
+
+non terminal Cuadruplo Instruccion3D;
+
+non terminal String op;
+non terminal String oprela;
+non terminal String opera;
+
+non terminal LTF;
+non terminal LTI;
+non terminal DS;
+non terminal DH;
+
+start with  s;
+
+s::= LTI PCOMA LTF PCOMA DS PCOMA DH PCOMA LM {::}
+    |LTI PCOMA 		 DS PCOMA DH PCOMA LM {::};
+
+LTF::=LTF COMA ID:a1      {:this.parser.g.DECTF(a1);:}
+     |FLOAT ID:a1 	  {:this.parser.g.DECTF(a1);:};           //declaración de temporales flotantes
+
+LTI::=LTI COMA ID:a1      {:this.parser.g.DECTI(a1);:}
+     |INT ID:a1 	  {:this.parser.g.DECTI(a1);:};           //declaración de temporales enteros 
+
+DS::=INT STACK CA ENTERO:a CC {:this.parser.g.DECstack(a);:};    //declaración del stack
+
+DH::=INT HEAP  CA ENTERO:a CC {:this.parser.g.DECheap(a);:};     //declaración del heap
+
+
+LM::=LM:a0 M:a1 	{::}
+   |M:a0 		{::};
+
+M::=VOID ID:a0 PA PC LLA L:a1 	LB:a2 LLC {:NodoCuadruplos a=new NodoCuadruplos(a1.L,a0+"_0",false);a2.L.addFirst(a);  NodoCuadruplos ag=new NodoCuadruplos(a2.L,a0); this.parser.g.add(ag); :}
+   |VOID ID:a0 PA PC LLA 	LB:a2 LLC {:NodoCuadruplos ag=new NodoCuadruplos(a2.L,a0); this.parser.g.add(ag); :};
+
+LB::=LB:a0 E:a1		{:this.parser.g.add(a1); a0.L.add(a1);RESULT=a0;:}
+    |E:a0 		{:this.parser.g.add(a0); ListaNodoCuadruplos res= new ListaNodoCuadruplos(); res.L.add(a0); RESULT=res;:};
+
+
+
+E::=  LABEL:a0 DPUNTOS L:a1	          {:NodoCuadruplos res=new NodoCuadruplos(a1.L,a0,false);RESULT=res;:}
+     |LABEL:a0 DPUNTOS 	          	  {:NodoCuadruplos res=new NodoCuadruplos(null,a0,false);RESULT=res;:};    
+
+L::= L:a0  Instruccion3D:a1 	        {:a0.L.add(a1); RESULT=a0;:}
+     |Instruccion3D:a0 			{:ListaCuadruplos res= new ListaCuadruplos(); res.L.add(a0); RESULT=res;:};
+
+
+Instruccion3D::= IF PA opera:a0 oprela:a1 opera:a2 PC	 GOTO LABEL:a3 PCOMA 	{:Cuadruplo c=new Cuadruplo(a0,a2,a1,a3);RESULT=c;:}
+	      | GOTO LABEL:a0  PCOMA  						{:Cuadruplo c=new Cuadruplo(null,null,"GOTO",a0);RESULT=c;:}
+
+	      | ID:a0 ASIGNA opera:a1 op:a2 opera:a3 PCOMA	{:Cuadruplo c=new Cuadruplo(a1,a3,a2,a0); RESULT=c;:}
+	      | ID:a0 ASIGNA opera:a1				{:Cuadruplo c=new Cuadruplo(a1,null,"=",a0); RESULT=c;:}	 
+
+	      | ID:a0 ASIGNA STACK CA opera:a1 CC  PCOMA 	{:Cuadruplo c=new Cuadruplo(a1,null,"STACKV",a0);RESULT=c;:}
+	      | ID:a0 ASIGNA HEAP CA opera:a1 CC    PCOMA	{:Cuadruplo c=new Cuadruplo(a1,null,"HEAPV",a0);RESULT=c;:}
+
+	      | HEAP CA opera:a0 CC ASIGNA opera:a1  PCOMA	{:Cuadruplo c=new Cuadruplo(a1,null,"HEAP",a0);RESULT=c;:}
+	      | STACK CA opera:a0 CC ASIGNA opera:a1 PCOMA	{:Cuadruplo c=new Cuadruplo(a1,null,"STACK",a0);RESULT=c;:}
+	      | PCOMA 						{:Cuadruplo c=new Cuadruplo(null,null,";",null);RESULT=c;:}
+	      
+	      | ID:a0 PA PC 	PCOMA	          		{:Cuadruplo c=new Cuadruplo(null,null,"CALL",a0);RESULT=c;:};
+	      
+	      
+
+op::=MAS:a       {:RESULT=a;:}
+	|MENOS:a {:RESULT=a;:}
+	|POR:a   {:RESULT=a;:}
+	|DIV:a   {:RESULT=a;:}
+	|MOD:a	 {:RESULT=a;:};
+
+oprela::=MAYORQ:a   {:RESULT=a;:}
+	|MENORQ:a   {:RESULT=a;:}
+	|MENORIGUAL:a  {:RESULT=a;:}
+	|MAYORIGUAL:a  {:RESULT=a;:}
+	|NOIGUAL:a{:RESULT=a;:}
+	|IGUAL:a {:RESULT=a;:};
+
+opera::=ID:a   {:RESULT=a;:}
+	|ENTERO:a {:RESULT=a;:}
+	|ENTERO:a1 PUNTO ENTERO:a2 {:RESULT="";:};
+	
+	      
